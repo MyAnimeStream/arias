@@ -8,16 +8,13 @@ services:
     restart: always
     networks:
       - internal
-
-  aria2:
-    container_name: Aria2
-    image: xujinkai/aria2-with-webui
-    restart: always
-    ports:
-      - 6880:80
-      - 6800:6800
-    networks:
-      - internal
+    environment:
+      -
+    volumes:
+      - downloads:/downloads
 
 networks:
   internal: {}
+
+volumes:
+  downloads: {}
