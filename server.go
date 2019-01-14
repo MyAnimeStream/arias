@@ -1,7 +1,7 @@
 package arias
 
 import (
-	"fmt"
+	"encoding/json"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/google/uuid"
@@ -45,10 +45,13 @@ func NewServer(config Config) (s Server, err error) {
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	s = Server{
-		Router:     r,
-		Config:     config,
-		Storage:    storage,
+		Router: r,
+		Config: config,
+
 		AriaClient: ariaClient,
+		Storage:    storage,
+
+		tasks: make(map[uuid.UUID]Task),
 	}
 
 	s.addHandlers()
@@ -56,13 +59,17 @@ func NewServer(config Config) (s Server, err error) {
 }
 
 func (s *Server) ListenAndServe() error {
-	return http.ListenAndServe(s.Config.ServerAddr, s.Router)
+	addr := s.Config.ServerAddr
+	log.Printf("Starting to serve on %s\n", addr)
+	return http.ListenAndServe(addr, s.Router)
 }
 
 func (s *Server) PerformTask(task Task) {
-	s.tasks[task.GetId()] = task
+	id := task.GetId()
+	s.tasks[id] = task
 	go func() {
 		_ = task.Perform()
+		//delete(s.tasks, id)
 	}()
 }
 
@@ -73,10 +80,21 @@ func (s *Server) addHandlers() {
 	r.Get("/status", s.status)
 }
 
+func jsonResponse(w http.ResponseWriter, data interface{}, status int) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	return json.NewEncoder(w).Encode(data)
+}
+
 func (s *Server) download(w http.ResponseWriter, r *http.Request) {
-	downloadRequest := defaultDownloadRequest()
+	var downloadRequest DownloadRequest
 	err := schemaDecoder.Decode(&downloadRequest, r.URL.Query())
 	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+
+	if err := downloadRequest.Check(); err != nil {
 		http.Error(w, err.Error(), 400)
 		return
 	}
@@ -84,10 +102,8 @@ func (s *Server) download(w http.ResponseWriter, r *http.Request) {
 	task := NewDownloadTask(s, downloadRequest)
 	s.PerformTask(task)
 
-	_, err = fmt.Fprint(w, task.GetId().URN())
-	if err != nil {
-		log.Println(err)
-	}
+	resp := DownloadResponse{task.GetId().String()}
+	_ = jsonResponse(w, resp, http.StatusOK)
 }
 
 func (s *Server) status(w http.ResponseWriter, r *http.Request) {
@@ -103,4 +119,6 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Task not found", 404)
 		return
 	}
+
+	_ = jsonResponse(w, task.GetStatus(), http.StatusOK)
 }

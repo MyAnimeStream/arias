@@ -1,5 +1,8 @@
 package aria2
 
+// GID provides an object oriented approach to aria2.
+// Instead of calling the methods on the client directly,
+// you can call them on the GID instance.
 type GID struct {
 	client *Client
 	GID    string

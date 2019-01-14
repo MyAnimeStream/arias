@@ -1,5 +1,10 @@
 package aria2
 
+import (
+	"encoding/json"
+	"time"
+)
+
 type StatusName string
 
 const (
@@ -33,7 +38,38 @@ type Status struct {
 	BelongsTo              string
 	Dir                    string
 	Files                  []File
-	Bittorrent             interface{}
+	Bittorrent             BittorrentStatus
 	VerifiedLength         uint `json:",string"`
 	VerifyIntegrityPending bool `json:",string"`
+}
+
+type UNIXTime struct {
+	time.Time
+}
+
+func (t UNIXTime) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.Unix())
+}
+
+func (t *UNIXTime) UnmarshalJSON(data []byte) error {
+	var ts int64
+	err := json.Unmarshal(data, &ts)
+	if err != nil {
+		return err
+	}
+
+	*t = UNIXTime{time.Unix(ts, 0)}
+	return nil
+}
+
+type BittorrentStatus struct {
+	AnnounceList     []URI
+	Comment          string
+	CreationDateUNIX UNIXTime `json:",string"`
+	Mode             string
+	Info             BittorrentStatusInfo
+}
+
+type BittorrentStatusInfo struct {
+	Name string
 }

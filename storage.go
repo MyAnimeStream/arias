@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"google.golang.org/api/option"
@@ -17,6 +18,8 @@ type UploadOptions struct {
 	Bucket      string
 	Filename    string
 	ContentType string
+	// ForceGZip
+	ForceGZip bool
 }
 
 type Storage interface {
@@ -41,7 +44,7 @@ func determineContentType(f io.ReadSeeker, options UploadOptions) (contentType s
 
 	if contentType == "" {
 		buffer := make([]byte, 512)
-		_, err := f.Read(buffer)
+		_, err = f.Read(buffer)
 		if err != nil {
 			return
 		}
@@ -91,6 +94,7 @@ func (s *googleCloudStorage) Upload(ctx context.Context, f io.ReadSeeker, option
 	attrs.ContentType = contentType
 	attrs.ContentEncoding = "gzip"
 
+	// Google supports gzip "natively". It automatically decodes the data if need be
 	w, _ := gzip.NewWriterLevel(objWriter, gzip.BestCompression)
 	_, errWrite := io.Copy(w, f)
 	_ = w.Close()
@@ -111,11 +115,14 @@ type s3Storage struct {
 }
 
 func NewS3Storage(opts ...*aws.Config) (s Storage, err error) {
+	opt := aws.NewConfig().WithCredentials(credentials.NewEnvCredentials())
+	opts = append([]*aws.Config{opt}, opts...)
 	sess, err := session.NewSession(opts...)
 	if err != nil {
 		return
 	}
 
+	sess.Config.WithCredentialsChainVerboseErrors(true)
 	uploader := s3manager.NewUploader(sess)
 
 	s = &s3Storage{
@@ -132,14 +139,21 @@ func (s *s3Storage) Upload(ctx context.Context, f io.ReadSeeker, options UploadO
 		return
 	}
 
-	reader, writer := io.Pipe()
+	var reader io.ReadSeeker
+	if options.ForceGZip {
+		reader, writer := io.Pipe()
 
-	go func() {
-		w, _ := gzip.NewWriterLevel(writer, gzip.BestCompression)
-		_, _ = io.Copy(w, f)
-		_ = w.Close()
-		_ = writer.Close()
-	}()
+		defer func() { _ = reader.Close() }()
+
+		go func() {
+			w, _ := gzip.NewWriterLevel(writer, gzip.BestCompression)
+			_, _ = io.Copy(w, f)
+			_ = w.Close()
+			_ = writer.Close()
+		}()
+	} else {
+		reader = f
+	}
 
 	input := s3manager.UploadInput{
 		Bucket:          &options.Bucket,
@@ -149,7 +163,6 @@ func (s *s3Storage) Upload(ctx context.Context, f io.ReadSeeker, options UploadO
 		Body:            reader,
 	}
 	_, err = s.uploader.UploadWithContext(ctx, &input)
-	_ = reader.Close()
 
 	return
 }

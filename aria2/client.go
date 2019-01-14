@@ -20,6 +20,11 @@ import (
 	"os"
 )
 
+// URIs creates a string slice from the given uris
+func URIs(uris ...string) []string {
+	return uris
+}
+
 type EventListener func(event *DownloadEvent)
 
 type Client struct {
@@ -150,7 +155,9 @@ func (c *Client) WaitForDownload(gid string) error {
 		c.activeGIDs[gid] = channel
 	}
 
-	return <-channel
+	err := <-channel
+	delete(c.activeGIDs, gid)
+	return err
 }
 
 // Download adds a new download and waits for it to complete.
@@ -188,17 +195,26 @@ func (c *Client) DownloadWithContext(ctx context.Context, uris []string, options
 	return
 }
 
-// Delete removes the download denoted by gid from disk as well as from memory.
+// Delete removes the download denoted by gid and deletes all corresponding files.
 func (c *Client) Delete(gid string) (err error) {
-	files, err := c.GetFiles(gid)
+	err = c.Remove(gid)
 	if err != nil {
+		return
+	}
+
+	files, err := c.GetFiles(gid)
+	if err == nil {
 		for _, file := range files {
 			_ = os.Remove(file.Path)
 		}
 	}
 
-	err = c.Remove(gid)
 	return
+}
+
+// GetGID creates a GID struct which you can use to interact with the download directly
+func (c *Client) GetGID(gid string) GID {
+	return GID{c, gid}
 }
 
 // AddUri adds a new download.
@@ -219,8 +235,7 @@ func (c *Client) AddUri(uris []string, options *Options) (GID, error) {
 	var reply string
 	err := c.rpcClient.Call("aria2.addUri", args, &reply)
 
-	gid := GID{c, reply}
-	return gid, err
+	return c.GetGID(reply), err
 }
 
 // Remove removes the download denoted by gid.

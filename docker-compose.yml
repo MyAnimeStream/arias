@@ -6,15 +6,15 @@ services:
     build: .
     image: myanimestream/arias
     restart: always
-    networks:
-      - internal
     environment:
-      -
+      - AWS_REGION
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+    ports:
+      - 8080:80
+      - 6800:6800
     volumes:
       - downloads:/downloads
-
-networks:
-  internal: {}
 
 volumes:
   downloads: {}
