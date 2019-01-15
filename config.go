@@ -13,13 +13,20 @@ type Config struct {
 	Aria2Addr  string
 
 	StorageType string
+
+	DefaultBucket string
+	// AllowBucketOverride specifies whether the requester can override the bucket to upload to
+	AllowBucketOverride bool
+
+	// AllowNoName specifies whether the requester may omit the name from the request.
+	// Arias would use the name of the downloaded file in that case
+	AllowNoName bool
 }
 
 func defaultConfig() Config {
 	return Config{
-		ServerAddr:  ":80",
-		Aria2Addr:   "ws://localhost:6800/jsonrpc",
-		StorageType: "s3",
+		ServerAddr: ":80",
+		Aria2Addr:  "ws://localhost:6800/jsonrpc",
 	}
 }
 
@@ -45,6 +52,10 @@ func LoadConfig(configFile string) (c Config, err error) {
 func (c *Config) Check() error {
 	if c == nil {
 		return errors.New("config is nil")
+	}
+
+	if c.DefaultBucket == "" {
+		return errors.New("default bucket must be specified")
 	}
 
 	return nil

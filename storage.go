@@ -22,8 +22,13 @@ type UploadOptions struct {
 	ForceGZip bool
 }
 
+type UploadOutput struct {
+	Bucket   string `json:"bucket"`
+	Filename string `json:"filename"`
+}
+
 type Storage interface {
-	Upload(ctx context.Context, f io.ReadSeeker, options UploadOptions) error
+	Upload(ctx context.Context, f io.ReadSeeker, options UploadOptions) (UploadOutput, error)
 }
 
 func NewStorageFromType(storageType string) (s Storage, err error) {
@@ -80,7 +85,9 @@ func NewGoogleCloudStorage(opts ...option.ClientOption) (s Storage, err error) {
 	return
 }
 
-func (s *googleCloudStorage) Upload(ctx context.Context, f io.ReadSeeker, options UploadOptions) error {
+func (s *googleCloudStorage) Upload(ctx context.Context, f io.ReadSeeker, options UploadOptions) (UploadOutput, error) {
+	var out UploadOutput
+
 	bkt := s.client.Bucket(options.Bucket)
 	obj := bkt.Object(options.Filename)
 	objWriter := obj.NewWriter(ctx)
@@ -88,7 +95,7 @@ func (s *googleCloudStorage) Upload(ctx context.Context, f io.ReadSeeker, option
 
 	contentType, err := determineContentType(f, options)
 	if err != nil {
-		return err
+		return out, nil
 	}
 
 	attrs.ContentType = contentType
@@ -98,15 +105,19 @@ func (s *googleCloudStorage) Upload(ctx context.Context, f io.ReadSeeker, option
 	w, _ := gzip.NewWriterLevel(objWriter, gzip.BestCompression)
 	_, errWrite := io.Copy(w, f)
 	_ = w.Close()
-	errClose := objWriter.Close()
+	_ = objWriter.Close()
 
 	if errWrite != nil {
-		return errWrite
-	} else if errClose != nil {
-		return errClose
+		return out, errWrite
 	}
 
-	return nil
+	objAttrs, err := obj.Attrs(ctx)
+	if err == nil {
+		out.Bucket = objAttrs.Bucket
+		out.Filename = objAttrs.Name
+	}
+
+	return out, nil
 }
 
 type s3Storage struct {
@@ -133,14 +144,16 @@ func NewS3Storage(opts ...*aws.Config) (s Storage, err error) {
 	return
 }
 
-func (s *s3Storage) Upload(ctx context.Context, f io.ReadSeeker, options UploadOptions) (err error) {
+func (s *s3Storage) Upload(ctx context.Context, f io.ReadSeeker, options UploadOptions) (out UploadOutput, err error) {
 	contentType, err := determineContentType(f, options)
 	if err != nil {
 		return
 	}
 
 	var reader io.ReadSeeker
+	var contentEncoding *string
 	if options.ForceGZip {
+		contentEncoding = aws.String("gzip")
 		reader, writer := io.Pipe()
 
 		defer func() { _ = reader.Close() }()
@@ -159,10 +172,12 @@ func (s *s3Storage) Upload(ctx context.Context, f io.ReadSeeker, options UploadO
 		Bucket:          &options.Bucket,
 		Key:             &options.Filename,
 		ContentType:     &contentType,
-		ContentEncoding: aws.String("gzip"),
+		ContentEncoding: contentEncoding,
 		Body:            reader,
 	}
 	_, err = s.uploader.UploadWithContext(ctx, &input)
+
+	out = UploadOutput{options.Bucket, options.Filename}
 
 	return
 }

@@ -3,8 +3,25 @@ package arias
 import "errors"
 
 type DownloadRequest struct {
-	Url  string `schema:"url"`
-	Name string `schema:"name"`
+	Url    string `schema:"url"`
+	Bucket string `schema:"bucket"`
+	Name   string `schema:"name"`
+
+	CallbackUrl string `schema:"callback"`
+}
+
+func (req *DownloadRequest) UseConfig(c *Config) error {
+	if req.Bucket == "" {
+		req.Bucket = c.DefaultBucket
+	} else if !c.AllowBucketOverride {
+		return errors.New("bucket override forbidden")
+	}
+
+	if req.Name == "" && !c.AllowNoName {
+		return errors.New("name must be provided")
+	}
+
+	return nil
 }
 
 func (req *DownloadRequest) Check() error {
@@ -19,5 +36,5 @@ func (req *DownloadRequest) Check() error {
 }
 
 type DownloadResponse struct {
-	ID string `json:"id"`
+	Id string `json:"id"`
 }

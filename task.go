@@ -8,6 +8,9 @@ import (
 	"github.com/myanimestream/arias/aria2"
 	"log"
 	"os"
+	"path"
+	"path/filepath"
+	"strings"
 )
 
 type Task interface {
@@ -19,6 +22,7 @@ type Task interface {
 type TaskStatus struct {
 	Running bool        `json:"running"`
 	State   string      `json:"state"`
+	Result  interface{} `json:"result,omitempty"`
 	Err     interface{} `json:"error,omitempty"`
 }
 
@@ -40,9 +44,18 @@ func (status *TaskStatus) Error(err error) {
 	status.Err = err.Error()
 }
 
-func (status *TaskStatus) Done() {
+func (status *TaskStatus) Done(res interface{}) {
 	status.Running = false
 	status.State = "done"
+	status.Result = res
+}
+
+func formatFilename(template string, filename string) string {
+	ext := filepath.Ext(filename)
+	name := strings.TrimSuffix(filename, ext)
+
+	r := strings.NewReplacer("{filename}", filename, "{name}", name, "{ext}", ext)
+	return r.Replace(template)
 }
 
 type DownloadTask interface {
@@ -60,7 +73,9 @@ type downloadTask struct {
 	req DownloadRequest
 
 	status *TaskStatus
+	gid    *aria2.GID
 	file   *aria2.File
+	result UploadOutput
 }
 
 func NewDownloadTask(server *Server, req DownloadRequest) DownloadTask {
@@ -83,6 +98,9 @@ func (task *downloadTask) String() string {
 }
 
 func (task *downloadTask) Perform() (err error) {
+	defer func() { _ = task.Cleanup() }()
+	defer task.SendCallback()
+
 	task.status.Start()
 
 	log.Printf("[%s] download started\n", task.id)
@@ -104,8 +122,14 @@ func (task *downloadTask) Perform() (err error) {
 	}
 
 	log.Printf("[%s] done\n", task.id)
-	task.status.Done()
+	task.status.Done(task.result)
 	return
+}
+
+func (task *downloadTask) SendCallback() {
+	if task.req.CallbackUrl != "" {
+		task.server.GoSendCallback(task.req.CallbackUrl, task.status)
+	}
 }
 
 func (task *downloadTask) GetStatus() *TaskStatus {
@@ -115,6 +139,9 @@ func (task *downloadTask) GetStatus() *TaskStatus {
 func (task *downloadTask) Download() error {
 	ariaClient := &task.server.AriaClient
 	status, err := ariaClient.DownloadWithContext(task.ctx, aria2.URIs(task.req.Url), &aria2.Options{})
+	gid := ariaClient.GetGID(status.GID)
+	task.gid = &gid
+
 	if err != nil {
 		return err
 	}
@@ -134,14 +161,31 @@ func (task *downloadTask) Upload() error {
 		return errors.New("no file to upload")
 	}
 
+	name := task.req.Name
+	if name != "" {
+		name = formatFilename(name, file.Path)
+	} else {
+		name = path.Base(file.Path)
+	}
+
 	f, err := os.Open(file.Path)
 	if err != nil {
 		return err
 	}
 
 	storage := task.server.Storage
-	err = storage.Upload(task.ctx, f, UploadOptions{Bucket: "linkle.arias-mas", Filename: "test"})
+	result, err := storage.Upload(task.ctx, f, UploadOptions{Bucket: task.req.Bucket, Filename: name})
 	_ = f.Close()
 
+	task.result = result
+
 	return err
+}
+
+func (task *downloadTask) Cleanup() (err error) {
+	if task.gid != nil {
+		err = task.gid.Delete()
+	}
+
+	return
 }
