@@ -328,8 +328,8 @@ type PositionSetBehaviour string
 
 const (
 	SetPositionStart    PositionSetBehaviour = "POS_SET"
-	SetPositionEnd                           = "POS_END"
-	SetPositionRelative                      = "POS_CUR"
+	SetPositionEnd      PositionSetBehaviour = "POS_END"
+	SetPositionRelative PositionSetBehaviour = "POS_CUR"
 )
 
 // ChangePosition changes the position of the download denoted by gid in the queue.
