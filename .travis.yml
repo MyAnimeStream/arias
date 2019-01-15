@@ -1,16 +1,27 @@
-language: go
-
+dist: xenial
 services:
   - docker
 
+language: go
+
 go:
-  - "1.10.x"
+  - "1.11.x"
+
+# Only clone the most recent commit.
+git:
+  depth: 1
+
+install: true
 
 before_script:
+  - go install -mod vendor github.com/golangci/golangci-lint/cmd/golangci-lint
   - go get -t -v ./...
 
 script:
-  - go test -v ./...
+  - golangci-lint run
+  - go test -v -race ./...
+
+after_script:
   - docker build --tag "$DOCKER_REPO" .
 
 deploy:
