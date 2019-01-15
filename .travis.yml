@@ -21,7 +21,7 @@ script:
   - golangci-lint run
   - go test -v -race ./...
 
-after_script:
+before_deploy:
   - docker build --tag "$DOCKER_REPO" .
 
 deploy:
