@@ -11,10 +11,10 @@ go:
 git:
   depth: 1
 
-install: true
+install:
+  - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.12.5
 
 before_script:
-  - go install -mod vendor github.com/golangci/golangci-lint/cmd/golangci-lint
   - go get -t -v ./...
 
 script:
