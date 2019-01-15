@@ -182,7 +182,7 @@ func (c *Client) DownloadWithContext(ctx context.Context, uris []string, options
 	}()
 
 	select {
-	case err = <-downloadDone:
+	case <-downloadDone:
 		status, err = gid.TellStatus()
 		if err != nil {
 			return

@@ -86,6 +86,10 @@ func (s *Server) SendCallback(url string, data interface{}) (resp *http.Response
 	w := bytes.NewBuffer(p)
 
 	req, err := http.NewRequest("POST", url, w)
+	if err != nil {
+		return
+	}
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", fmt.Sprintf("arias/%s", Version))
 

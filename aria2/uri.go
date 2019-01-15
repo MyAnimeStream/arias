@@ -4,7 +4,7 @@ type URIStatus string
 
 const (
 	URIUsed    URIStatus = "used"
-	URIWaiting           = "waiting"
+	URIWaiting URIStatus = "waiting"
 )
 
 type URI struct {

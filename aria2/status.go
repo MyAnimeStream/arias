@@ -9,11 +9,11 @@ type StatusName string
 
 const (
 	StatusActive    StatusName = "active"
-	StatusWaiting              = "waiting"
-	StatusPaused               = "paused"
-	StatusError                = "error"
-	StatusCompleted            = "completed"
-	StatusRemoved              = "removed"
+	StatusWaiting   StatusName = "waiting"
+	StatusPaused    StatusName = "paused"
+	StatusError     StatusName = "error"
+	StatusCompleted StatusName = "completed"
+	StatusRemoved   StatusName = "removed"
 )
 
 type Status struct {
