@@ -1,9 +1,3 @@
 .idea/
 .git/
-
-.dockerignore
-.gitignore
-docker-compose.yml
-Dockerfile
-LICENSE
-README.md
+.travis/
