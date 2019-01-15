@@ -1,0 +1,33 @@
+version: v1.0
+name: Arias CI
+
+agent:
+  machine:
+    type: e1-standard-2
+    os_image: ubuntu1804
+
+blocks:
+  - name: Test
+    prologue:
+      commands:
+        - checkout
+        - sem-version go 1.11
+    task:
+      jobs:
+        - name: go test
+          commands:
+            - go test
+
+  - name: Build Docker image
+      prologue:
+        commands:
+          - checkout
+    task:
+      jobs:
+        - name: docker build
+          commands:
+            - echo $DOCKER_PASSWORD | docker login --username "$DOCKER_USERNAME" --password-stdin
+            - docker build --tag myanimestream/arias .
+            - docker push "$DOCKER_USERNAME"/arias:latest
+    secrets:
+      - name: docker-hub
