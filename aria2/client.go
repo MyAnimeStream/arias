@@ -12,10 +12,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/MyAnimeStream/arias/aria2/rpc"
 	"github.com/cenkalti/rpc2"
 	"github.com/cenkalti/rpc2/jsonrpc"
 	"github.com/gorilla/websocket"
-	"github.com/myanimestream/arias/aria2/rpc"
 	"net/http"
 	"os"
 )

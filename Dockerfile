@@ -11,7 +11,7 @@ RUN go get\
  github.com/gorilla/websocket\
  github.com/micro/go-config
 
-WORKDIR /go/src/github.com/myanimestream/arias/
+WORKDIR /go/src/github.com/MyAnimeStream/arias/
 # yes this is stupid, but because of Go's questionable "put everything in the root folder" policy
 # there's no other way to do this without rebuilding it every time even when unrelated files change.
 COPY aria2/ aria2/
@@ -25,7 +25,7 @@ FROM alpine:latest
 RUN apk --no-cache add ca-certificates aria2
 
 WORKDIR /root/
-COPY --from=builder /go/src/github.com/myanimestream/arias/arias .
+COPY --from=builder /go/src/github.com/MyAnimeStream/arias/arias .
 COPY .docker/start.sh .
 
 RUN chmod +x arias start.sh

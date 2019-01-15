@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"github.com/myanimestream/arias"
+	"github.com/MyAnimeStream/arias"
 	"log"
 )
 
