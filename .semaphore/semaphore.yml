@@ -19,9 +19,9 @@ blocks:
             - go test
 
   - name: Build Docker image
-      prologue:
-        commands:
-          - checkout
+    prologue:
+      commands:
+        - checkout
     task:
       jobs:
         - name: docker build
