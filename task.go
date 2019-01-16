@@ -20,14 +20,15 @@ type Task interface {
 }
 
 type TaskStatus struct {
+	Id      string      `json:"id"`
 	Running bool        `json:"running"`
 	State   string      `json:"state"`
 	Result  interface{} `json:"result,omitempty"`
 	Err     interface{} `json:"error,omitempty"`
 }
 
-func NewTaskStatus() *TaskStatus {
-	return &TaskStatus{State: "waiting"}
+func NewTaskStatus(id string) *TaskStatus {
+	return &TaskStatus{Id: id, State: "waiting"}
 }
 
 func (status *TaskStatus) Start() {
@@ -79,13 +80,15 @@ type downloadTask struct {
 }
 
 func NewDownloadTask(server *Server, req DownloadRequest) DownloadTask {
+	id := uuid.New()
+
 	return &downloadTask{
-		id:  uuid.New(),
+		id:  id,
 		ctx: context.Background(),
 
 		server: server,
 		req:    req,
-		status: NewTaskStatus(),
+		status: NewTaskStatus(id.String()),
 	}
 }
 

@@ -25,7 +25,7 @@ type Config struct {
 
 func defaultConfig() Config {
 	return Config{
-		ServerAddr: ":80",
+		ServerAddr: ":7200",
 		Aria2Addr:  "ws://localhost:6800/jsonrpc",
 	}
 }
